@@ -13,10 +13,14 @@ client = OpenAI(
 
 response = client.chat.completions.create(
     model="gc/grok-4.6",
+    # messages=[
+    #     {"role": "system", "content": "You are a helpful assistant."},
+    #     {"role": "user", "content": "Explain the diff between readiness and startup probes in Kubernetes."},
+    # ],
     messages=[
-        {"role": "system", "content": "You are a helpful assistant."},
         {"role": "user", "content": "Explain the diff between readiness and startup probes in Kubernetes."},
     ],
+
     temperature=0.2,
 )
 
