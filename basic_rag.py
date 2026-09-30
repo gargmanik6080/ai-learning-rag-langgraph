@@ -23,6 +23,8 @@ chunks = [item["text"] for item in texts]
 client_db = chromadb.Client()
 collection = client_db.create_collection(name="k8s_docs")
 
+## SKIPPING embedding for the basic program
+
 question = "What does a readiness probe do in Kubernetes?"  # should get a proper answer
 # question = "What is a security context in a Pod?"   # shoud get I dont know
 
