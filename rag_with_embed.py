@@ -9,11 +9,14 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 load_dotenv()
 
-api_key = os.getenv("OMNIROUTE_API_KEY")
+api_key = os.getenv("GROQ_API_KEY")
+if not api_key:
+    raise RuntimeError("No API key found. Check [.env](.env) for GROQ_API_KEY")
+
 
 client = OpenAI(
     api_key=api_key or "local-dev",
-    base_url="http://127.0.0.1:20128/v1",
+    base_url="https://api.groq.com/openai/v1",
 )
 
 
@@ -28,26 +31,25 @@ splitter = RecursiveCharacterTextSplitter(
     separators=["\n\n", "\n", ". ", " ", ""]
 )
 
-chunks = []
+chunk_texts = []
+chunk_ids = []
+
 for path in sorted(Path("data/docs").glob("*.md")):
     text = path.read_text(encoding="utf-8")
     for index, chunk in enumerate(splitter.split_text(text)):
-        chunks.append({
-            "id": f"{path.stem}-{index}",
-            "text": chunk,
-            "source": path.name
-        })
-
+        chunk_texts.append(chunk)
+        chunk_ids.append(f"{path.stem}-{index}")
 
 ## EMBEDDING
 client_db = chromadb.Client()
-collection = client_db.create_collection(name="k8s_docs")
+collection = client_db.get_or_create_collection(name="k8s_docs")
 
-vectors = embedder.encode(chunks)
+vectors = embedder.encode(chunk_texts)
+
 collection.add(
-    documents=chunks,
+    documents=chunk_texts,
     embeddings=vectors.tolist(),
-    ids=[item["id"] for item in texts]
+    ids=chunk_ids
 )
 
 question = "What does a readiness probe do in Kubernetes?"  # should get a proper answer
@@ -58,7 +60,7 @@ collection_results = collection.query(
     n_results=5
 )
 
-retrieved_text = " ".join([item["document"] for item in collection_results["documents"][0]])
+retrieved_text = "\n\n".join(collection_results["documents"][0])
 
 prompt = f"""
 Use the following context to answer the question.
@@ -71,7 +73,7 @@ Question: {question}
 """
 
 response = client.chat.completions.create(
-    model="gc/grok-4.6",
+    model="openai/gpt-oss-120b",
     messages=[
         {"role": "system",  "content": "You are a helpful kubernetes assistant."},
         {"role": "user", "content": prompt},
